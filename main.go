@@ -145,15 +145,18 @@ func createLink(db *generated.Queries) gin.HandlerFunc {
 				}
 				return name
 			})
-			err := validate.Struct(req)
-			if err != nil {
+			// проверяем на ошибки валидации
+			errValidate := validate.Struct(req)
+			if errValidate != nil {
 				errorsMap := make(map[string]string)
-				for _, err := range err.(validator.ValidationErrors) {
+				for _, err := range errValidate.(validator.ValidationErrors) {
 					errorsMap[err.Field()] = err.Tag()
 				}
+				// если ошибка валидации
 				c.JSON(http.StatusUnprocessableEntity, gin.H{"errors": errorsMap})
 				return
 			}
+			// если ошибка парсинга данных
 			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request"})
 			return
 		}
