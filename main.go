@@ -4,6 +4,7 @@ import (
 	generated "code/db/generated"
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
@@ -141,7 +142,8 @@ func createLink(db *generated.Queries) gin.HandlerFunc {
 				for _, e := range ve {
 					errorsMap[e.Field()] = e.Tag()
 				}
-				c.JSON(http.StatusUnprocessableEntity, gin.H{"errors": errorsMap})
+				jsonData, _ := json.MarshalIndent(errorsMap, "", "  ")
+				c.JSON(http.StatusUnprocessableEntity, gin.H{"errors": jsonData})
 				return
 			}
 			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request"})
@@ -208,7 +210,7 @@ func updateLink(db *generated.Queries) gin.HandlerFunc {
 		// проверка записи в БД
 		link, err := db.GetLink(c, id)
 		if err != nil {
-			c.JSON(http.StatusNotFound, gin.H{"update link": "link does not exist"})
+			c.JSON(http.StatusNotFound, gin.H{"error": "the link does not exist"})
 			return
 		}
 		// парсинг и валидация данных
