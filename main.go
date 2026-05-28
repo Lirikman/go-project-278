@@ -12,7 +12,6 @@ import (
 	"reflect"
 	"regexp"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/getsentry/sentry-go"
@@ -135,22 +134,22 @@ func createLink(db *generated.Queries) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var req UserRequest
 		var link generated.CreateLinkParams
-		validate := validator.New()
-		// Регистрируем функцию для извлечения тега json
-		validate.RegisterTagNameFunc(func(fld reflect.StructField) string {
-			name := strings.SplitN(fld.Tag.Get("json"), ",", 2)[0]
-			if name == "-" {
-				return ""
-			}
-			return name
-		})
 		// парсинг запроса и проверка данных
 		if err := c.ShouldBindJSON(&req); err != nil {
-			var ve validator.ValidationErrors
-			if errors.As(err, &ve) {
+			validate := validator.New()
+			// регистрируем функцию для извлечения тега json
+			validate.RegisterTagNameFunc(func(fld reflect.StructField) string {
+				name := fld.Tag.Get("json")
+				if name == "-" {
+					return ""
+				}
+				return name
+			})
+			err := validate.Struct(req)
+			if err != nil {
 				errorsMap := make(map[string]string)
-				for _, e := range ve {
-					errorsMap[e.Field()] = e.Tag()
+				for _, err := range err.(validator.ValidationErrors) {
+					errorsMap[err.Field()] = err.Tag()
 				}
 				c.JSON(http.StatusUnprocessableEntity, gin.H{"errors": errorsMap})
 				return
