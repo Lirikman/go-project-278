@@ -4,14 +4,15 @@ import (
 	generated "code/db/generated"
 	"context"
 	"database/sql"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
 	"net/http"
 	"os"
+	"reflect"
 	"regexp"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/getsentry/sentry-go"
@@ -134,6 +135,15 @@ func createLink(db *generated.Queries) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var req UserRequest
 		var link generated.CreateLinkParams
+		validate := validator.New()
+		// Регистрируем функцию для извлечения тега json
+		validate.RegisterTagNameFunc(func(fld reflect.StructField) string {
+			name := strings.SplitN(fld.Tag.Get("json"), ",", 2)[0]
+			if name == "-" {
+				return ""
+			}
+			return name
+		})
 		// парсинг запроса и проверка данных
 		if err := c.ShouldBindJSON(&req); err != nil {
 			var ve validator.ValidationErrors
@@ -142,8 +152,7 @@ func createLink(db *generated.Queries) gin.HandlerFunc {
 				for _, e := range ve {
 					errorsMap[e.Field()] = e.Tag()
 				}
-				jsonData, _ := json.MarshalIndent(errorsMap, "", "  ")
-				c.JSON(http.StatusUnprocessableEntity, gin.H{"errors": jsonData})
+				c.JSON(http.StatusUnprocessableEntity, gin.H{"errors": errorsMap})
 				return
 			}
 			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request"})
