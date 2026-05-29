@@ -122,8 +122,13 @@ func listLinks(db *generated.Queries) gin.HandlerFunc {
 }
 
 // структура для валидации поля original_url
-type UrlRequest struct {
+type urlRequest struct {
 	OriginalUrl string `json:"original_url" validate:"required,url"`
+}
+
+// структура для валидации поля short_name
+type nameRequest struct {
+	ShortName string `json:"short_name" validate:"min=3,max=32"`
 }
 
 // создание новой записи
@@ -135,8 +140,8 @@ func createLink(db *generated.Queries) gin.HandlerFunc {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request"})
 			return
 		}
-		// проверка поля original_url на корректность
-		var req UrlRequest
+		// валидация поля original_url
+		var req urlRequest
 		validate := validator.New(validator.WithRequiredStructEnabled())
 		req.OriginalUrl = link.OriginalUrl
 		err := validate.Struct(req)
@@ -146,9 +151,22 @@ func createLink(db *generated.Queries) gin.HandlerFunc {
 			c.JSON(http.StatusUnprocessableEntity, gin.H{"errors": errorsMap})
 			return
 		}
-		shortName := link.ShortName.String
+		// валидация поля short_name
+		if link.ShortName.String != "" {
+			var req nameRequest
+			validate := validator.New(validator.WithRequiredStructEnabled())
+			req.ShortName = link.ShortName.String
+			err := validate.Struct(req)
+			if err != nil {
+				errorsMap := make(map[string]string)
+				errorsMap["short_name"] = err.Error()
+				c.JSON(http.StatusUnprocessableEntity, gin.H{"errors": errorsMap})
+				return
+			}
+		}
 		// если имя не введено, то генерируем имя
-		if shortName == "" {
+		var shortName string
+		if link.ShortName.String == "" {
 			lastRec, err := db.LastLink(c)
 			if err != nil {
 				c.JSON(http.StatusUnprocessableEntity, gin.H{"last link": "unable to get the latest entry"})
@@ -162,13 +180,6 @@ func createLink(db *generated.Queries) gin.HandlerFunc {
 			if len(shortName) < 3 {
 				shortName = shortName + shortName + shortName
 			}
-		}
-		// проверяем длину короткого имени
-		if len(shortName) < 3 || len(shortName) > 32 {
-			errorsMap := make(map[string]string)
-			errorsMap["short_name"] = "length must be between 3 and 32 characters"
-			c.JSON(http.StatusUnprocessableEntity, gin.H{"errors": errorsMap})
-			return
 		}
 		link.ShortName = pgtype.Text{String: shortName, Valid: true}
 		// проверяем имя на уникальность
