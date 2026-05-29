@@ -185,12 +185,9 @@ func createLink(db *generated.Queries) gin.HandlerFunc {
 				shortName = shortName + shortName + shortName
 			}
 		}
-		// создаём короткое имя ссылки
-		shortUrl := fmt.Sprintf("https://go-project-278-yoao.onrender.com/r/%s", shortName)
-		shortUrlTxt := pgtype.Text{String: shortUrl, Valid: true}
-
+		link.ShortName = pgtype.Text{String: shortName, Valid: true}
 		// проверяем имя на уникальность
-		recCode, err := db.GetLinkFromCode(c, shortUrlTxt)
+		recCode, err := db.GetLinkFromCode(c, link.ShortName)
 		emptyStruct := generated.GetLinkFromCodeRow{}
 		if recCode != emptyStruct {
 			errorsMap := make(map[string]string)
@@ -198,7 +195,9 @@ func createLink(db *generated.Queries) gin.HandlerFunc {
 			c.JSON(http.StatusUnprocessableEntity, gin.H{"errors": errorsMap})
 			return
 		}
-		link.ShortName = pgtype.Text{String: shortName, Valid: true}
+		// создаём короткое имя ссылки
+		shortUrl := fmt.Sprintf("https://go-project-278-yoao.onrender.com/r/%s", shortName)
+		shortUrlTxt := pgtype.Text{String: shortUrl, Valid: true}
 		// cоздаём запись
 		res, err := db.CreateLink(c, link)
 		if err != nil {
