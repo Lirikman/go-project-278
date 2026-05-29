@@ -123,12 +123,12 @@ func listLinks(db *generated.Queries) gin.HandlerFunc {
 
 // структура для валидации поля original_url
 type urlRequest struct {
-	OriginalUrl string `json:"original_url" validate:"required,url"`
+	OriginalUrl string `json:"original_url" binding:"required,url"`
 }
 
 // структура для валидации поля short_name
 type nameRequest struct {
-	ShortName string `json:"short_name" validate:"min=3,max=32"`
+	ShortName string `json:"short_name" binding:"min=3,max=32"`
 }
 
 // создание новой записи
