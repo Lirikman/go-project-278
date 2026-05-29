@@ -126,7 +126,7 @@ func listLinks(db *generated.Queries) gin.HandlerFunc {
 // структура для валидации полей original_url и short_name
 type UserRequest struct {
 	OriginalUrl string `json:"original_url" binding:"required,url"`
-	ShortName   string `json:"short_name" binding:"min=3,max=32"`
+	ShortName   string `json:"short_name"`
 }
 
 // создание новой записи
@@ -162,6 +162,13 @@ func createLink(db *generated.Queries) gin.HandlerFunc {
 		}
 		link.OriginalUrl = req.OriginalUrl
 		shortName := req.ShortName
+		// проверяем длину короткого имени
+		if len(shortName) < 3 || len(shortName) > 32 {
+			errorsMap := make(map[string]string)
+			errorsMap["short_name"] = "length must be between 3 and 32 characters"
+			c.JSON(http.StatusUnprocessableEntity, gin.H{"errors": errorsMap})
+			return
+		}
 		// если имя не введено, то генерируем имя
 		if shortName == "" {
 			lastRec, err := db.LastLink(c)
@@ -177,11 +184,21 @@ func createLink(db *generated.Queries) gin.HandlerFunc {
 			if len(shortName) < 3 {
 				shortName = shortName + shortName + shortName
 			}
-			link.ShortName = pgtype.Text{String: shortName, Valid: true}
 		}
 		// создаём короткое имя ссылки
 		shortUrl := fmt.Sprintf("https://go-project-278-yoao.onrender.com/r/%s", shortName)
 		shortUrlTxt := pgtype.Text{String: shortUrl, Valid: true}
+
+		// проверяем имя на уникальность
+		recCode, err := db.GetLinkFromCode(c, shortUrlTxt)
+		emptyStruct := generated.GetLinkFromCodeRow{}
+		if recCode != emptyStruct {
+			errorsMap := make(map[string]string)
+			errorsMap["short_name"] = "short name already in use"
+			c.JSON(http.StatusUnprocessableEntity, gin.H{"errors": errorsMap})
+			return
+		}
+		link.ShortName = pgtype.Text{String: shortName, Valid: true}
 		// cоздаём запись
 		res, err := db.CreateLink(c, link)
 		if err != nil {
