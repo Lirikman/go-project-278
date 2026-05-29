@@ -9,7 +9,6 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"reflect"
 	"regexp"
 	"strconv"
 	"time"
@@ -123,45 +122,32 @@ func listLinks(db *generated.Queries) gin.HandlerFunc {
 	}
 }
 
-// структура для валидации полей original_url и short_name
-type UserRequest struct {
-	OriginalUrl string `json:"original_url" binding:"required,url"`
-	ShortName   string `json:"short_name"`
+// структура для валидации поля original_url
+type UrlRequest struct {
+	OriginalUrl string `json:"original_url" validate:"required,url"`
 }
 
 // создание новой записи
 func createLink(db *generated.Queries) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		var req UserRequest
 		var link generated.CreateLinkParams
-		// парсинг запроса и проверка данных
-		if err := c.ShouldBindJSON(&req); err != nil {
-			validate := validator.New()
-			// регистрируем функцию для извлечения тега json
-			validate.RegisterTagNameFunc(func(fld reflect.StructField) string {
-				name := fld.Tag.Get("json")
-				if name == "-" {
-					return ""
-				}
-				return name
-			})
-			// проверяем на ошибки валидации
-			errValidate := validate.Struct(req)
-			if errValidate != nil {
-				errorsMap := make(map[string]string)
-				for _, err := range errValidate.(validator.ValidationErrors) {
-					errorsMap[err.Field()] = err.Tag()
-				}
-				// если ошибка валидации
-				c.JSON(http.StatusUnprocessableEntity, gin.H{"errors": errorsMap})
-				return
-			}
-			// если ошибка парсинга данных
+		// парсинг запроса
+		if err := c.ShouldBindJSON(&link); err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request"})
 			return
 		}
-		link.OriginalUrl = req.OriginalUrl
-		shortName := req.ShortName
+		// проверка поля original_url на корректность
+		var req UrlRequest
+		validate := validator.New(validator.WithRequiredStructEnabled())
+		req.OriginalUrl = link.OriginalUrl
+		err := validate.Struct(req)
+		if err != nil {
+			errorsMap := make(map[string]string)
+			errorsMap["original_url"] = err.Error()
+			c.JSON(http.StatusUnprocessableEntity, gin.H{"errors": errorsMap})
+			return
+		}
+		shortName := link.ShortName.String
 		// если имя не введено, то генерируем имя
 		if shortName == "" {
 			lastRec, err := db.LastLink(c)
