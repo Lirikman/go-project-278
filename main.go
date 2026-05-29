@@ -152,10 +152,11 @@ func createLink(db *generated.Queries) gin.HandlerFunc {
 			return
 		}
 		// валидация поля short_name
-		if link.ShortName.String != "" {
+		shortName := link.ShortName.String
+		if shortName != "" {
 			var req nameRequest
 			validate := validator.New(validator.WithRequiredStructEnabled())
-			req.ShortName = link.ShortName.String
+			req.ShortName = shortName
 			err := validate.Struct(req)
 			if err != nil {
 				errorsMap := make(map[string]string)
@@ -165,8 +166,7 @@ func createLink(db *generated.Queries) gin.HandlerFunc {
 			}
 		}
 		// если имя не введено, то генерируем имя
-		var shortName string
-		if link.ShortName.String == "" {
+		if shortName == "" {
 			lastRec, err := db.LastLink(c)
 			if err != nil {
 				c.JSON(http.StatusUnprocessableEntity, gin.H{"last link": "unable to get the latest entry"})
@@ -191,15 +191,15 @@ func createLink(db *generated.Queries) gin.HandlerFunc {
 			c.JSON(http.StatusUnprocessableEntity, gin.H{"errors": errorsMap})
 			return
 		}
-		// создаём короткое имя ссылки
-		shortUrl := fmt.Sprintf("https://go-project-278-yoao.onrender.com/r/%s", shortName)
-		shortUrlTxt := pgtype.Text{String: shortUrl, Valid: true}
 		// cоздаём запись
 		res, err := db.CreateLink(c, link)
 		if err != nil {
 			c.JSON(http.StatusUnprocessableEntity, gin.H{"create link": "unable to create records"})
 			return
 		}
+		// создаём короткое имя ссылки
+		shortUrl := fmt.Sprintf("https://go-project-278-yoao.onrender.com/r/%s", shortName)
+		shortUrlTxt := pgtype.Text{String: shortUrl, Valid: true}
 		// добавляем короткую ссылку к записи
 		var shortNameParams generated.UpdateShortNameParams
 		shortNameParams.ID = res.ID
