@@ -162,13 +162,6 @@ func createLink(db *generated.Queries) gin.HandlerFunc {
 		}
 		link.OriginalUrl = req.OriginalUrl
 		shortName := req.ShortName
-		// проверяем длину короткого имени
-		if len(shortName) < 3 || len(shortName) > 32 {
-			errorsMap := make(map[string]string)
-			errorsMap["short_name"] = "length must be between 3 and 32 characters"
-			c.JSON(http.StatusUnprocessableEntity, gin.H{"errors": errorsMap})
-			return
-		}
 		// если имя не введено, то генерируем имя
 		if shortName == "" {
 			lastRec, err := db.LastLink(c)
@@ -184,6 +177,13 @@ func createLink(db *generated.Queries) gin.HandlerFunc {
 			if len(shortName) < 3 {
 				shortName = shortName + shortName + shortName
 			}
+		}
+		// проверяем длину короткого имени
+		if len(shortName) < 3 || len(shortName) > 32 {
+			errorsMap := make(map[string]string)
+			errorsMap["short_name"] = "length must be between 3 and 32 characters"
+			c.JSON(http.StatusUnprocessableEntity, gin.H{"errors": errorsMap})
+			return
 		}
 		link.ShortName = pgtype.Text{String: shortName, Valid: true}
 		// проверяем имя на уникальность
