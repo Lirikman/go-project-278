@@ -143,13 +143,17 @@ func createLink(db *generated.Queries) gin.HandlerFunc {
 		}
 		// валидация поля short_name
 		shortName := link.ShortName.String
-		err = validate.Var(shortName, "min=3,max=32")
-		if err != nil {
-			errorsMap := make(map[string]string)
-			errorsMap["short_name"] = err.Error()
-			c.JSON(http.StatusUnprocessableEntity, gin.H{"errors": errorsMap})
-			return
+		// если поле заполнено, то проверяем валидатором
+		if shortName != "" {
+			err = validate.Var(shortName, "min=3,max=32")
+			if err != nil {
+				errorsMap := make(map[string]string)
+				errorsMap["short_name"] = err.Error()
+				c.JSON(http.StatusUnprocessableEntity, gin.H{"errors": errorsMap})
+				return
+			}
 		}
+
 		// если имя не введено, то генерируем имя
 		if shortName == "" {
 			lastRec, err := db.LastLink(c)
@@ -223,7 +227,7 @@ func updateLink(db *generated.Queries) gin.HandlerFunc {
 		validate := validator.New()
 		// валидация поля original_url
 		origUrl := updLink.OriginalUrl
-		err = validate.Var(origUrl, "url")
+		err = validate.Var(origUrl, "required,url")
 		if err != nil {
 			errorsMap := make(map[string]string)
 			errorsMap["original_url"] = err.Error()
@@ -232,7 +236,7 @@ func updateLink(db *generated.Queries) gin.HandlerFunc {
 		}
 		// валидация поля short_name
 		shortName := updLink.ShortName
-		err = validate.Var(shortName, "min=3,max=32")
+		err = validate.Var(shortName, "required,min=3,max=32")
 		if err != nil {
 			errorsMap := make(map[string]string)
 			errorsMap["short_name"] = err.Error()
