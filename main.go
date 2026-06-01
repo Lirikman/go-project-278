@@ -242,16 +242,10 @@ func updateLink(db *generated.Queries) gin.HandlerFunc {
 			errorsMap["short_name"] = err.Error()
 			c.JSON(http.StatusUnprocessableEntity, gin.H{"errors": errorsMap})
 		}
-		updLink.ID = id
-		res := db.UpdateLink(c, updLink)
-		if res != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"update link": "unable to update data"})
-			return
-		}
 		// проверка изменения поля short_name
 		if link.ShortName.String != updLink.ShortName.String {
 			// проверяем имя на уникальность
-			recCode, err := db.GetLinkFromCode(c, link.ShortName)
+			recCode, err := db.GetLinkFromCode(c, updLink.ShortName)
 			emptyStruct := generated.GetLinkFromCodeRow{}
 			if recCode != emptyStruct {
 				errorsMap := make(map[string]string)
@@ -270,7 +264,14 @@ func updateLink(db *generated.Queries) gin.HandlerFunc {
 				return
 			}
 		}
-		c.JSON(http.StatusOK, res)
+		// обновляем остальные поля записи
+		updLink.ID = id
+		newLink, res := db.UpdateLink(c, updLink)
+		if res != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"update link": "unable to update data"})
+			return
+		}
+		c.JSON(http.StatusOK, newLink)
 	}
 }
 

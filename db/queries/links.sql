@@ -17,10 +17,11 @@ $1, $2
 )
 RETURNING id, original_url, short_name, short_url, created_at;
 
--- name: UpdateLink :exec
+-- name: UpdateLink :one
 UPDATE links
 SET original_url = $2, short_name = $3
-WHERE id = $1;
+WHERE id = $1
+RETURNING id, original_url, short_name, short_url;
 
 -- name: UpdateShortName :exec
 UPDATE links
