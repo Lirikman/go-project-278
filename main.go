@@ -106,12 +106,12 @@ func listLinks(db *generated.Queries) gin.HandlerFunc {
 			return
 		}
 		if err != nil {
-			c.JSON(http.StatusUnprocessableEntity, gin.H{"error": "database error"})
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "database error"})
 			return
 		}
 		count, err := db.CounterLinks(c)
 		if err != nil {
-			c.JSON(http.StatusUnprocessableEntity, gin.H{"error": "unable to count the number of records"})
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "unable to count the number of records"})
 			return
 		}
 		headerVal := fmt.Sprintf("links: %d-%d/%d", idx0, idx1, count)
@@ -169,7 +169,7 @@ func createLink(db *generated.Queries) gin.HandlerFunc {
 		if shortName == "" {
 			lastRec, err := db.LastLink(c)
 			if err != nil {
-				c.JSON(http.StatusUnprocessableEntity, gin.H{"last link": "unable to get the latest entry"})
+				c.JSON(http.StatusInternalServerError, gin.H{"last link": "unable to get the latest entry"})
 				return
 			}
 			// получаем текущий ID записи
@@ -194,7 +194,7 @@ func createLink(db *generated.Queries) gin.HandlerFunc {
 		// cоздаём запись
 		res, err := db.CreateLink(c, link)
 		if err != nil {
-			c.JSON(http.StatusUnprocessableEntity, gin.H{"create link": "unable to create records"})
+			c.JSON(http.StatusInternalServerError, gin.H{"create link": "unable to create records"})
 			return
 		}
 		// создаём короткое имя ссылки
@@ -206,7 +206,7 @@ func createLink(db *generated.Queries) gin.HandlerFunc {
 		shortNameParams.ShortUrl = shortUrlTxt
 		err = db.UpdateShortName(c, shortNameParams)
 		if err != nil {
-			c.JSON(http.StatusUnprocessableEntity, gin.H{"short_name": "unable to add short name to record"})
+			c.JSON(http.StatusInternalServerError, gin.H{"short_name": "unable to add short name to record"})
 			return
 		}
 		c.JSON(http.StatusCreated, res)
@@ -215,12 +215,12 @@ func createLink(db *generated.Queries) gin.HandlerFunc {
 
 // структура для валидации поля original_url
 type origUrleRequest struct {
-	OriginalUrl string `json:"original_url" binding:"url"`
+	OriginalUrl string `json:"original_url" binding:"required,url"`
 }
 
 // структура для валидации поля short_name
 type shortNameRequest struct {
-	ShortName string `json:"short_name" binding:"min=3,max=32"`
+	ShortName string `json:"short_name" binding:"required,min=3,max=32"`
 }
 
 // обновление записи
@@ -230,7 +230,7 @@ func updateLink(db *generated.Queries) gin.HandlerFunc {
 		idStr := c.Param("id")
 		id, err := strconv.ParseInt(idStr, 10, 64)
 		if err != nil {
-			c.JSON(http.StatusUnprocessableEntity, gin.H{"id": "incorrect id entered"})
+			c.JSON(http.StatusBadRequest, gin.H{"id": "incorrect id entered"})
 			return
 		}
 		// проверка записи в БД
@@ -270,10 +270,37 @@ func updateLink(db *generated.Queries) gin.HandlerFunc {
 				return
 			}
 		}
+		// если поле short_name пустое, то генерируем новое имя
+		if updLink.ShortName.String == "" {
+			lastRec, err := db.LastLink(c)
+			if err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"last link": "unable to get the latest entry"})
+				return
+			}
+			// получаем текущий ID записи
+			lastID := fmt.Sprintf("%d", lastRec.ID+1)
+			// кодируем в Base62
+			shortName := base62.EncodeToString([]byte(lastID))
+			// если длина сгенерированного имени меньше 3
+			if len(shortName) < 3 {
+				shortName = shortName + shortName + shortName
+			}
+			link.ShortName = pgtype.Text{String: shortName, Valid: true}
+			// проверяем имя на уникальность
+			recCode, err := db.GetLinkFromCode(c, link.ShortName)
+			emptyStruct := generated.GetLinkFromCodeRow{}
+			if recCode != emptyStruct {
+				errorsMap := make(map[string]string)
+				errorsMap["short_name"] = "short name already in use"
+				c.JSON(http.StatusUnprocessableEntity, gin.H{"errors": errorsMap})
+				return
+			}
+		}
+
 		updLink.ID = id
 		res := db.UpdateLink(c, updLink)
 		if res != nil {
-			c.JSON(http.StatusUnprocessableEntity, gin.H{"update link": "unable to update data"})
+			c.JSON(http.StatusInternalServerError, gin.H{"update link": "unable to update data"})
 			return
 		}
 		// проверка изменения поля short_name
@@ -285,7 +312,7 @@ func updateLink(db *generated.Queries) gin.HandlerFunc {
 			shortNameParams.ShortUrl = pgtype.Text{String: shortUrl, Valid: true}
 			err = db.UpdateShortName(c, shortNameParams)
 			if err != nil {
-				c.JSON(http.StatusUnprocessableEntity, gin.H{"short_name": "unable to add short name to record"})
+				c.JSON(http.StatusInternalServerError, gin.H{"short_name": "unable to add short name to record"})
 				return
 			}
 		}
@@ -355,7 +382,7 @@ func redirectLink(db *generated.Queries) gin.HandlerFunc {
 		// получаем id, original_url из БД по введёному имени
 		codeParams, err := db.GetLinkFromCode(c, codeTxt)
 		if err != nil {
-			c.JSON(http.StatusUnprocessableEntity, gin.H{"error of receiving the id and original url": err.Error()})
+			c.JSON(http.StatusInternalServerError, gin.H{"error of receiving the id and original url": err.Error()})
 			return
 		}
 		// добавляем запись о посещении в БД
@@ -433,12 +460,12 @@ func listVisits(db *generated.Queries) gin.HandlerFunc {
 			return
 		}
 		if err != nil {
-			c.JSON(http.StatusUnprocessableEntity, gin.H{"get link visits": err.Error()})
+			c.JSON(http.StatusInternalServerError, gin.H{"get link visits": err.Error()})
 			return
 		}
 		count, err := db.CounterVisits(c)
 		if err != nil {
-			c.JSON(http.StatusUnprocessableEntity, gin.H{"error of receiving the counter of visits": err.Error()})
+			c.JSON(http.StatusInternalServerError, gin.H{"error of receiving the counter of visits": err.Error()})
 			return
 		}
 		headerVal := fmt.Sprintf("link_visits: %d-%d/%d", idx0, idx1, count)
