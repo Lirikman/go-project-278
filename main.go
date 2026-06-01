@@ -234,18 +234,18 @@ func updateLink(db *generated.Queries) gin.HandlerFunc {
 			c.JSON(http.StatusUnprocessableEntity, gin.H{"errors": errorsMap})
 			return
 		}
-		// валидация поля short_name
-		shortName := updLink.ShortName
-		err = validate.Var(shortName, "required,min=3,max=32")
-		if err != nil {
-			errorsMap := make(map[string]string)
-			errorsMap["short_name"] = err.Error()
-			c.JSON(http.StatusUnprocessableEntity, gin.H{"errors": errorsMap})
-		}
 		// проверка изменения поля short_name
 		if link.ShortName.String != updLink.ShortName.String {
+			// валидация поля short_name
+			shortName := updLink.ShortName
+			err = validate.Var(shortName, "required,min=3,max=32")
+			if err != nil {
+				errorsMap := make(map[string]string)
+				errorsMap["short_name"] = err.Error()
+				c.JSON(http.StatusUnprocessableEntity, gin.H{"errors": errorsMap})
+			}
 			// проверяем имя на уникальность
-			recCode, err := db.GetLinkFromCode(c, updLink.ShortName)
+			recCode, err := db.GetLinkFromCode(c, shortName)
 			emptyStruct := generated.GetLinkFromCodeRow{}
 			if recCode != emptyStruct {
 				errorsMap := make(map[string]string)
