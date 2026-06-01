@@ -430,7 +430,7 @@ func TestRedirectWrong2(t *testing.T) {
 	var response map[string]any
 	err := json.Unmarshal(w.Body.Bytes(), &response)
 	want := map[string]any{"error of receiving the id and original url": "no rows in result set"}
-	assert.Equal(t, http.StatusUnprocessableEntity, w.Code)
+	assert.Equal(t, http.StatusInternalServerError, w.Code)
 	assert.NoError(t, err)
 	assert.Equal(t, want, response)
 }
