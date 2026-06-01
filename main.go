@@ -121,16 +121,6 @@ func listLinks(db *generated.Queries) gin.HandlerFunc {
 	}
 }
 
-// структура для валидации поля original_url
-type urlRequest struct {
-	OriginalUrl string `json:"original_url" binding:"required,url"`
-}
-
-// структура для валидации поля short_name
-type nameRequest struct {
-	ShortName string `json:"short_name" binding:"min=3,max=32"`
-}
-
 // создание новой записи
 func createLink(db *generated.Queries) gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -140,11 +130,11 @@ func createLink(db *generated.Queries) gin.HandlerFunc {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request"})
 			return
 		}
+		// создаём валидатор
+		validate := validator.New()
 		// валидация поля original_url
-		var req urlRequest
-		validate := validator.New(validator.WithRequiredStructEnabled())
-		req.OriginalUrl = link.OriginalUrl
-		err := validate.Struct(req)
+		origUrl := link.OriginalUrl
+		err := validate.Var(origUrl, "required,url")
 		if err != nil {
 			errorsMap := make(map[string]string)
 			errorsMap["original_url"] = err.Error()
@@ -153,17 +143,12 @@ func createLink(db *generated.Queries) gin.HandlerFunc {
 		}
 		// валидация поля short_name
 		shortName := link.ShortName.String
-		if shortName != "" {
-			var req nameRequest
-			validate := validator.New(validator.WithRequiredStructEnabled())
-			req.ShortName = shortName
-			err := validate.Struct(req)
-			if err != nil {
-				errorsMap := make(map[string]string)
-				errorsMap["short_name"] = err.Error()
-				c.JSON(http.StatusUnprocessableEntity, gin.H{"errors": errorsMap})
-				return
-			}
+		err = validate.Var(shortName, "min=3,max=32")
+		if err != nil {
+			errorsMap := make(map[string]string)
+			errorsMap["short_name"] = err.Error()
+			c.JSON(http.StatusUnprocessableEntity, gin.H{"errors": errorsMap})
+			return
 		}
 		// если имя не введено, то генерируем имя
 		if shortName == "" {
@@ -213,16 +198,6 @@ func createLink(db *generated.Queries) gin.HandlerFunc {
 	}
 }
 
-// структура для валидации поля original_url
-type origUrleRequest struct {
-	OriginalUrl string `json:"original_url" binding:"required,url"`
-}
-
-// структура для валидации поля short_name
-type shortNameRequest struct {
-	ShortName string `json:"short_name" binding:"required,min=3,max=32"`
-}
-
 // обновление записи
 func updateLink(db *generated.Queries) gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -244,31 +219,24 @@ func updateLink(db *generated.Queries) gin.HandlerFunc {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request"})
 			return
 		}
-		// валидация поля original_url на корректность
-		if updLink.OriginalUrl != "" {
-			var req origUrleRequest
-			validate := validator.New(validator.WithRequiredStructEnabled())
-			req.OriginalUrl = updLink.OriginalUrl
-			err = validate.Struct(req)
-			if err != nil {
-				errorsMap := make(map[string]string)
-				errorsMap["original_url"] = err.Error()
-				c.JSON(http.StatusUnprocessableEntity, gin.H{"errors": errorsMap})
-				return
-			}
+		// создаём валидатор
+		validate := validator.New()
+		// валидация поля original_url
+		origUrl := updLink.OriginalUrl
+		err = validate.Var(origUrl, "url")
+		if err != nil {
+			errorsMap := make(map[string]string)
+			errorsMap["original_url"] = err.Error()
+			c.JSON(http.StatusUnprocessableEntity, gin.H{"errors": errorsMap})
+			return
 		}
-		// валидация поля short_name на длину
-		if updLink.ShortName.String != "" {
-			var req shortNameRequest
-			validate := validator.New(validator.WithRequiredStructEnabled())
-			req.ShortName = updLink.ShortName.String
-			err = validate.Struct(req)
-			if err != nil {
-				errorsMap := make(map[string]string)
-				errorsMap["short_name"] = err.Error()
-				c.JSON(http.StatusUnprocessableEntity, gin.H{"errors": errorsMap})
-				return
-			}
+		// валидация поля short_name
+		shortName := updLink.ShortName
+		err = validate.Var(shortName, "min=3,max=32")
+		if err != nil {
+			errorsMap := make(map[string]string)
+			errorsMap["short_name"] = err.Error()
+			c.JSON(http.StatusUnprocessableEntity, gin.H{"errors": errorsMap})
 		}
 		updLink.ID = id
 		res := db.UpdateLink(c, updLink)
@@ -278,31 +246,14 @@ func updateLink(db *generated.Queries) gin.HandlerFunc {
 		}
 		// проверка изменения поля short_name
 		if link.ShortName.String != updLink.ShortName.String {
-			// если поле short_name пустое, то генерируем имя
-			if updLink.ShortName.String == "" {
-				lastRec, err := db.LastLink(c)
-				if err != nil {
-					c.JSON(http.StatusInternalServerError, gin.H{"last link": "unable to get the latest entry"})
-					return
-				}
-				// получаем текущий ID записи
-				lastID := fmt.Sprintf("%d", lastRec.ID+1)
-				// кодируем в Base62
-				shortName := base62.EncodeToString([]byte(lastID))
-				// если длина сгенерированного имени меньше 3
-				if len(shortName) < 3 {
-					shortName = shortName + shortName + shortName
-				}
-				link.ShortName = pgtype.Text{String: shortName, Valid: true}
-				// проверяем имя на уникальность
-				recCode, err := db.GetLinkFromCode(c, link.ShortName)
-				emptyStruct := generated.GetLinkFromCodeRow{}
-				if recCode != emptyStruct {
-					errorsMap := make(map[string]string)
-					errorsMap["short_name"] = "short name already in use"
-					c.JSON(http.StatusUnprocessableEntity, gin.H{"errors": errorsMap})
-					return
-				}
+			// проверяем имя на уникальность
+			recCode, err := db.GetLinkFromCode(c, link.ShortName)
+			emptyStruct := generated.GetLinkFromCodeRow{}
+			if recCode != emptyStruct {
+				errorsMap := make(map[string]string)
+				errorsMap["short_name"] = "short name already in use"
+				c.JSON(http.StatusUnprocessableEntity, gin.H{"errors": errorsMap})
+				return
 			}
 			shortUrl := fmt.Sprintf("https://go-project-278-yoao.onrender.com/r/%s", updLink.ShortName.String)
 			// изменяем короткую ссылку записи
