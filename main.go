@@ -176,7 +176,7 @@ func createLink(db *generated.Queries) gin.HandlerFunc {
 			lastID := fmt.Sprintf("%d", lastRec.ID+1)
 			// кодируем в Base62
 			shortName = base62.EncodeToString([]byte(lastID))
-			// если длина сгенерированного имени меньше 3
+			// если длина сгенерированного имени меньше 3s
 			if len(shortName) < 3 {
 				shortName = shortName + shortName + shortName
 			}
@@ -270,33 +270,6 @@ func updateLink(db *generated.Queries) gin.HandlerFunc {
 				return
 			}
 		}
-		// если поле short_name пустое, то генерируем новое имя
-		if updLink.ShortName.String == "" {
-			lastRec, err := db.LastLink(c)
-			if err != nil {
-				c.JSON(http.StatusInternalServerError, gin.H{"last link": "unable to get the latest entry"})
-				return
-			}
-			// получаем текущий ID записи
-			lastID := fmt.Sprintf("%d", lastRec.ID+1)
-			// кодируем в Base62
-			shortName := base62.EncodeToString([]byte(lastID))
-			// если длина сгенерированного имени меньше 3
-			if len(shortName) < 3 {
-				shortName = shortName + shortName + shortName
-			}
-			link.ShortName = pgtype.Text{String: shortName, Valid: true}
-			// проверяем имя на уникальность
-			recCode, err := db.GetLinkFromCode(c, link.ShortName)
-			emptyStruct := generated.GetLinkFromCodeRow{}
-			if recCode != emptyStruct {
-				errorsMap := make(map[string]string)
-				errorsMap["short_name"] = "short name already in use"
-				c.JSON(http.StatusUnprocessableEntity, gin.H{"errors": errorsMap})
-				return
-			}
-		}
-
 		updLink.ID = id
 		res := db.UpdateLink(c, updLink)
 		if res != nil {
@@ -305,6 +278,32 @@ func updateLink(db *generated.Queries) gin.HandlerFunc {
 		}
 		// проверка изменения поля short_name
 		if link.ShortName.String != updLink.ShortName.String {
+			// если поле short_name пустое, то генерируем имя
+			if updLink.ShortName.String == "" {
+				lastRec, err := db.LastLink(c)
+				if err != nil {
+					c.JSON(http.StatusInternalServerError, gin.H{"last link": "unable to get the latest entry"})
+					return
+				}
+				// получаем текущий ID записи
+				lastID := fmt.Sprintf("%d", lastRec.ID+1)
+				// кодируем в Base62
+				shortName := base62.EncodeToString([]byte(lastID))
+				// если длина сгенерированного имени меньше 3
+				if len(shortName) < 3 {
+					shortName = shortName + shortName + shortName
+				}
+				link.ShortName = pgtype.Text{String: shortName, Valid: true}
+				// проверяем имя на уникальность
+				recCode, err := db.GetLinkFromCode(c, link.ShortName)
+				emptyStruct := generated.GetLinkFromCodeRow{}
+				if recCode != emptyStruct {
+					errorsMap := make(map[string]string)
+					errorsMap["short_name"] = "short name already in use"
+					c.JSON(http.StatusUnprocessableEntity, gin.H{"errors": errorsMap})
+					return
+				}
+			}
 			shortUrl := fmt.Sprintf("https://go-project-278-yoao.onrender.com/r/%s", updLink.ShortName.String)
 			// изменяем короткую ссылку записи
 			var shortNameParams generated.UpdateShortNameParams
