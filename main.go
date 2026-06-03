@@ -154,7 +154,7 @@ func createLink(db *generated.Queries) gin.HandlerFunc {
 			}
 		}
 
-		// если имя не введено, то генерируем имя
+		// если короткое имя не введено, то генерируем новое имя
 		if shortName == "" {
 			lastRec, err := db.LastLink(c)
 			if err != nil {
@@ -198,7 +198,13 @@ func createLink(db *generated.Queries) gin.HandlerFunc {
 			c.JSON(http.StatusInternalServerError, gin.H{"short_name": "unable to add short name to record"})
 			return
 		}
-		c.JSON(http.StatusCreated, res)
+		// получаем созданную и полностью заполненную запись
+		newRec, err := db.GetLink(c, res.ID)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"get new create link": "unable to retrieve the record"})
+			return
+		}
+		c.JSON(http.StatusCreated, newRec)
 	}
 }
 
