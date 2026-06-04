@@ -416,7 +416,7 @@ func listVisits(db *generated.Queries) gin.HandlerFunc {
 		}
 		paginParams.Limit = int32(limit)
 		paginParams.Offset = int32(offset)
-		// получаем все записи
+		// получаем все записи из БД
 		links, err := db.ListLinkVisits(c, paginParams)
 		if err == sql.ErrNoRows {
 			c.JSON(http.StatusNotFound, gin.H{"error": "no visitor records found"})
