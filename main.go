@@ -89,6 +89,7 @@ func listLinks(db *generated.Queries) gin.HandlerFunc {
 			limit = 1
 			offset = idx0
 		}
+		// если первый индекс больше второго
 		if idx0 > idx1 {
 			msg := "range values are specified incorrectly"
 			c.JSON(http.StatusBadRequest, gin.H{"error": msg})
@@ -403,6 +404,7 @@ func listVisits(db *generated.Queries) gin.HandlerFunc {
 			limit = 1
 			offset = idx0
 		}
+		// если первый индекс больше второго
 		if idx0 > idx1 {
 			msg := "range values are specified incorrectly"
 			c.JSON(http.StatusBadRequest, gin.H{"error": msg})
