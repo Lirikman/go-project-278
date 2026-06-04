@@ -112,7 +112,7 @@ func listLinks(db *generated.Queries) gin.HandlerFunc {
 		}
 		count, err := db.CounterLinks(c)
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "unable to count the number of records"})
+			c.JSON(http.StatusUnprocessableEntity, gin.H{"error": "unable to count the number of records"})
 			return
 		}
 		headerVal := fmt.Sprintf("links: %d-%d/%d", idx0, idx1, count)
