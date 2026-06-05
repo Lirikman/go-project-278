@@ -157,13 +157,26 @@ func createLink(db *generated.Queries) gin.HandlerFunc {
 
 		// если короткое имя не введено, то генерируем новое имя
 		if shortName == "" {
-			lastRec, err := db.LastLink(c)
+			// проверяем количество записей в БД
+			count, err := db.CounterLinks(c)
 			if err != nil {
-				c.JSON(http.StatusInternalServerError, gin.H{"last link": "unable to get the latest entry"})
+				c.JSON(http.StatusInternalServerError, gin.H{"counter link": "unable to get the number of records"})
 				return
 			}
-			// получаем текущий ID записи
-			lastID := fmt.Sprintf("%d", lastRec.ID+1)
+			var lastID string
+			// если БД содержит записи
+			if count > 0 {
+				lastRec, err := db.LastLink(c)
+				if err != nil {
+					c.JSON(http.StatusInternalServerError, gin.H{"last link": "unable to get the latest entry"})
+					return
+				}
+				// получаем текущий ID записи
+				lastID = fmt.Sprintf("%d", lastRec.ID+1)
+			} else {
+				// иначе текущиё ID равен 1
+				lastID = fmt.Sprintf("%d", 1)
+			}
 			// кодируем в Base62
 			shortName = base62.EncodeToString([]byte(lastID))
 			// если длина сгенерированного имени меньше 3s
