@@ -196,7 +196,7 @@ func TestUpdateLink(t *testing.T) {
 	assert.Equal(t, http.StatusOK, w.Code)
 	var response map[string]any
 	err := json.Unmarshal(w.Body.Bytes(), &response)
-	want := map[string]any{"id": float64(1), "original_url": "https://example.com/update_test", "short_name": "exmpl_update", "short_url": "https://go-project-278-yoao.onrender.com/r/exmpl_update"}
+	want := map[string]any{"id": float64(1), "original_url": "https://example.com/update_test", "short_name": "exmpl_update", "short_url": "/r/exmpl_update"}
 	assert.NoError(t, err)
 	assert.Equal(t, want, response)
 }
@@ -256,7 +256,7 @@ func TestPaginationGeLinksRight(t *testing.T) {
 	assert.Equal(t, http.StatusOK, w.Code)
 	var response []map[string]any
 	err := json.Unmarshal(w.Body.Bytes(), &response)
-	want := []map[string]any{{"id": float64(1), "original_url": "https://example.com/update_test", "short_name": "exmpl_update", "short_url": "https://go-project-278-yoao.onrender.com/r/exmpl_update"}, {"id": float64(3), "original_url": "https://example.com/long-url2", "short_name": "exmpl2", "short_url": nil}}
+	want := []map[string]any{{"id": float64(1), "original_url": "https://example.com/update_test", "short_name": "exmpl_update", "short_url": "/r/exmpl_update"}, {"id": float64(3), "original_url": "https://example.com/long-url2", "short_name": "exmpl2", "short_url": nil}}
 	assert.NoError(t, err)
 	assert.Equal(t, want, response)
 }
@@ -429,8 +429,8 @@ func TestRedirectWrong2(t *testing.T) {
 	// проверка результатов
 	var response map[string]any
 	err := json.Unmarshal(w.Body.Bytes(), &response)
-	want := map[string]any{"error of receiving the id and original url": "no rows in result set"}
-	assert.Equal(t, http.StatusInternalServerError, w.Code)
+	want := map[string]any{"error": "short name not found"}
+	assert.Equal(t, http.StatusNotFound, w.Code)
 	assert.NoError(t, err)
 	assert.Equal(t, want, response)
 }
