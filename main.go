@@ -107,12 +107,14 @@ func listLinks(db *generated.Queries) gin.HandlerFunc {
 			return
 		}
 		if err != nil {
-			log.Fatalf("database error: %v\n", err)
+			log.Printf("database error: %v\n", err)
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
 			return
 		}
 		count, err := db.CounterLinks(c)
 		if err != nil {
-			log.Fatalf("get count records error: %v\n", err)
+			log.Printf("get count records error: %v\n", err)
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
 			return
 		}
 		headerVal := fmt.Sprintf("links: %d-%d/%d", idx0, idx1, count)
@@ -160,7 +162,8 @@ func createLink(db *generated.Queries) gin.HandlerFunc {
 			// проверяем количество записей в БД
 			count, err := db.CounterLinks(c)
 			if err != nil {
-				log.Fatalf("counter link err: %v\n", err)
+				log.Printf("counter link err: %v\n", err)
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
 				return
 			}
 			var lastID string
@@ -168,7 +171,8 @@ func createLink(db *generated.Queries) gin.HandlerFunc {
 			if count > 0 {
 				lastRec, err := db.LastLink(c)
 				if err != nil {
-					log.Fatalf("get last link err: %v\n", err)
+					log.Printf("get last link err: %v\n", err)
+					c.JSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
 					return
 				}
 				// получаем текущий ID записи
@@ -189,7 +193,8 @@ func createLink(db *generated.Queries) gin.HandlerFunc {
 		recCode, err := db.GetLinkFromCode(c, link.ShortName)
 		if err != nil {
 			if !errors.Is(err, sql.ErrNoRows) {
-				log.Fatalf("get link from code error: %v\n", err)
+				log.Printf("get link from code error: %v\n", err)
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
 				return
 			}
 		}
@@ -203,11 +208,16 @@ func createLink(db *generated.Queries) gin.HandlerFunc {
 		// cоздаём запись
 		res, err := db.CreateLink(c, link)
 		if err != nil {
-			log.Fatalf("create link err: %v\n", err)
+			log.Printf("create link err: %v\n", err)
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
 			return
 		}
 		// создаём короткое имя ссылки
-		shortUrl := fmt.Sprintf("%s/r/%s", os.Getenv("SVC_NAME"), shortName)
+		nameService := os.Getenv("SVC_NAME")
+		if nameService == "" {
+			nameService = "https://github.com/Lirikman/go-project-278"
+		}
+		shortUrl := fmt.Sprintf("%s/r/%s", nameService, shortName)
 		shortUrlTxt := pgtype.Text{String: shortUrl, Valid: true}
 		// добавляем короткую ссылку к записи
 		var shortNameParams generated.UpdateShortNameParams
@@ -215,13 +225,15 @@ func createLink(db *generated.Queries) gin.HandlerFunc {
 		shortNameParams.ShortUrl = shortUrlTxt
 		err = db.UpdateShortName(c, shortNameParams)
 		if err != nil {
-			log.Fatalf("update short name error: %v\n", err)
+			log.Printf("update short name error: %v\n", err)
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
 			return
 		}
 		// получаем созданную и полностью заполненную запись
 		newRec, err := db.GetLink(c, res.ID)
 		if err != nil {
-			log.Fatalf("get new create link err: %v\n", err)
+			log.Printf("get new create link err: %v\n", err)
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
 			return
 		}
 		c.JSON(http.StatusCreated, newRec)
@@ -274,7 +286,8 @@ func updateLink(db *generated.Queries) gin.HandlerFunc {
 			recCode, err := db.GetLinkFromCode(c, shortName)
 			if err != nil {
 				if !errors.Is(err, sql.ErrNoRows) {
-					log.Fatalf("get link from code error: %v\n", err)
+					log.Printf("get link from code error: %v\n", err)
+					c.JSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
 					return
 				}
 			}
@@ -285,14 +298,19 @@ func updateLink(db *generated.Queries) gin.HandlerFunc {
 				c.JSON(http.StatusUnprocessableEntity, gin.H{"errors": errorsMap})
 				return
 			}
-			shortUrl := fmt.Sprintf("%s/r/%s", os.Getenv("SVC_NAME"), updLink.ShortName.String)
+			nameService := os.Getenv("SVC_NAME")
+			if nameService == "" {
+				nameService = "https://github.com/Lirikman/go-project-278"
+			}
+			shortUrl := fmt.Sprintf("%s/r/%s", nameService, updLink.ShortName.String)
 			// изменяем короткую ссылку записи
 			var shortNameParams generated.UpdateShortNameParams
 			shortNameParams.ID = link.ID
 			shortNameParams.ShortUrl = pgtype.Text{String: shortUrl, Valid: true}
 			err = db.UpdateShortName(c, shortNameParams)
 			if err != nil {
-				log.Fatalf("update short name error: %v\n", err)
+				log.Printf("update short name error: %v\n", err)
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
 				return
 			}
 		}
@@ -300,7 +318,8 @@ func updateLink(db *generated.Queries) gin.HandlerFunc {
 		updLink.ID = id
 		newLink, res := db.UpdateLink(c, updLink)
 		if res != nil {
-			log.Fatalf("update link err: %v\n", err)
+			log.Printf("update link err: %v\n", err)
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
 			return
 		}
 		c.JSON(http.StatusOK, newLink)
@@ -318,9 +337,13 @@ func getLinkFromId(db *generated.Queries) gin.HandlerFunc {
 		}
 		link, err := db.GetLink(c, id)
 		if err != nil {
-			c.JSON(http.StatusNotFound, gin.H{
-				"error": "link not found",
-			})
+			// проверяем, вызвана ли ошибка отсутствием строки в БД
+			if errors.Is(err, sql.ErrNoRows) {
+				c.JSON(http.StatusNotFound, gin.H{"error": "link not found"})
+				return
+			}
+			// иначе это другая ошибка сервера
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
 			return
 		}
 		c.JSON(http.StatusOK, link)
@@ -339,9 +362,13 @@ func deleteLink(db *generated.Queries) gin.HandlerFunc {
 		// проверяем наличие записи
 		_, err = db.GetLink(c, id)
 		if err != nil {
-			c.JSON(http.StatusNotFound, gin.H{
-				"error": "the link does not exist",
-			})
+			// проверяем, вызвана ли ошибка отсутствием строки в БД
+			if errors.Is(err, sql.ErrNoRows) {
+				c.JSON(http.StatusNotFound, gin.H{"error": "the link does not exist"})
+				return
+			}
+			// иначе это другая ошибка сервера
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
 			return
 		}
 		// удаляем ссылку
@@ -386,7 +413,8 @@ func redirectLink(db *generated.Queries) gin.HandlerFunc {
 		visitParams.Status = pgtype.Int4{Int32: int32(currentStatus), Valid: true}
 		_, err = db.CreateLinkVisits(c, visitParams)
 		if err != nil {
-			log.Fatalf("create link visits error: %v", err)
+			log.Printf("create link visits error: %v", err)
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
 			return
 		}
 		// перенапраявляем на оригинальный адрес
@@ -444,16 +472,19 @@ func listVisits(db *generated.Queries) gin.HandlerFunc {
 		// получаем все записи из БД
 		links, err := db.ListLinkVisits(c, paginParams)
 		if err == sql.ErrNoRows {
-			log.Fatalf("list link visits error: %v", err)
+			log.Printf("list link visits error: %v", err)
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
 			return
 		}
 		if err != nil {
-			log.Fatalf("get link visits error: %v", err)
+			log.Printf("get link visits error: %v", err)
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
 			return
 		}
 		count, err := db.CounterVisits(c)
 		if err != nil {
-			log.Fatalf("get counter visits error: %v", err)
+			log.Printf("get counter visits error: %v", err)
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
 			return
 		}
 		headerVal := fmt.Sprintf("link_visits: %d-%d/%d", idx0, idx1, count)
@@ -496,7 +527,7 @@ func main() {
 	r.DELETE("/api/links/:id", deleteLink(queries))
 
 	// запускаем сервер на порту 8080
-	if err := r.Run(":8080"); err != nil {
+	if err := r.Run(":os.Getenv(PORT)"); err != nil {
 		log.Fatalf("server startup error")
 	}
 }
