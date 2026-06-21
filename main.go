@@ -527,7 +527,11 @@ func main() {
 	r.DELETE("/api/links/:id", deleteLink(queries))
 
 	// запускаем сервер на порту 8080
-	if err := r.Run(":os.Getenv(PORT)"); err != nil {
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "8080"
+	}
+	if err := r.Run(":" + port); err != nil {
 		log.Fatalf("server startup error")
 	}
 }
