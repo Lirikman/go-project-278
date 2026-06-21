@@ -527,7 +527,7 @@ func main() {
 	r.DELETE("/api/links/:id", deleteLink(queries))
 
 	// запускаем сервер на порту 8080
-	port := os.Getenv("PORT")
+	port := os.Getenv("SVC_PORT")
 	if port == "" {
 		port = "8080"
 	}
