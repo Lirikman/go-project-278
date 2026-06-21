@@ -1,15 +1,15 @@
-:80
+http:// {
+	root * /app/public
 
-root * /app/public
+	handle /assets/* {
+		file_server
+	}
 
-handle /assets/* {
-	file_server
-}
+	handle / {
+		file_server
+	}
 
-handle / {
-	file_server
-}
-
-handle {
-    reverse_proxy backend:8080 
+	handle {
+	    reverse_proxy localhost:8080 
+	}
 }
