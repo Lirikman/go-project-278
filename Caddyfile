@@ -1,4 +1,7 @@
-http://onrender.com {
+:80 {
+
+	trusted_proxies static private_ranges
+
 	root * /app/public
 
 	handle /assets/* {
