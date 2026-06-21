@@ -1,7 +1,4 @@
 :80 {
-
-	trusted_proxies static private_ranges
-
 	root * /app/public
 
 	handle /assets/* {
@@ -13,6 +10,8 @@
 	}
 
 	handle {
-	    reverse_proxy localhost:8080 
+		reverse_proxy localhost:8080 {
+			trusted_proxies static private_ranges
+		}
 	}
 }
