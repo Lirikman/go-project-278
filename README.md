@@ -10,7 +10,7 @@ Designed to shorten long links to shorter ones, saving them in the database
 The service has a graphical interface and API.
 
 ## Service address:
-https://go-project-278-yoao.onrender.com
+https://go-project-278-bxbz.onrender.com
 
 ## Requirements
 The service has a validator to check the correctness of the data entered
