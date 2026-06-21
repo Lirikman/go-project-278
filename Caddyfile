@@ -1,4 +1,4 @@
-http:// {
+http://onrender.com {
 	root * /app/public
 
 	handle /assets/* {
