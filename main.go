@@ -37,8 +37,9 @@ func setupRouter() *gin.Engine {
 	}
 	// настройка политики разрешений
 	config := cors.DefaultConfig()
-	config.AllowOrigins = []string{"https://localhost:5173/"}
+	config.AllowOrigins = []string{"https://onrender.com", "https://localhost:5173/"}
 	config.AllowMethods = []string{"GET", "POST", "PUT", "DELETE"}
+	config.AllowCredentials = true
 	config.AllowHeaders = []string{"Origin", "Content-Type", "Referer"}
 	config.ExposeHeaders = []string{"Content-Range"}
 	router.Use(cors.New(config))
