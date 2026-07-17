@@ -4,6 +4,7 @@
 ## Hexlet tests and linter status:
 [![Actions Status](https://github.com/Lirikman/go-project-278/actions/workflows/hexlet-check.yml/badge.svg)](https://github.com/Lirikman/go-project-278/actions)
 
+
 ## Description
 Designed to shorten long links to shorter ones, saving them in the database
 The service has a graphical interface and API
